@@ -18,7 +18,7 @@ for (int i = 0; i < 1000; i++)
         while (true)
         {
             var matches = trie.StartsWith("a").Take(1000);
-            foreach (var match in matches.ToList())
+            foreach (var match in matches)
             {
                 count++;
                 if (count % 10_000_000 == 0)
@@ -30,4 +30,4 @@ for (int i = 0; i < 1000; i++)
     }));
 }
 
-Task.WaitAll(tasks);
+Console.ReadLine();
