@@ -1,0 +1,42 @@
+# CLI installs
+winget install Git.Git
+winget install rustup
+cargo install ripgrep -F pcre2
+cargo install fastmod
+cargo install bottom
+cargo install tokei
+cargo install hexyl
+winget install cmake
+winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
+cargo install starship
+winget install vscode
+winget install Microsoft.PowerShell
+Install-Module PSReadline # From pwsh window
+cargo install zoxide
+winget install github.cli
+winget install Microsoft.DotNet.SDK.8
+winget install notepad++
+winget install python
+winget install neovim
+winget install voidtools.everything
+winget install sysinternals
+winget install zoomit
+winget install KirillOsenkov.MSBuildStructuredLogViewer
+winget install -e --id Microsoft.AzureCLI
+winget install ShareX.ShareX
+winget install hxd
+winget install sharkdp.bat
+winget install chocolatey
+choco install winfetch -f
+winget install Meld.Meld
+winget install Nightingale
+winget install LINQPad.LINQPad.8
+Install-Module PSReadline
+
+# Non-CLI installs
+fzf - https://github.com/junegunn/fzf/releases
+voidtools.everything CLI - https://www.voidtools.com/support/everything/command_line_interface/
+cascadia code - https://github.com/microsoft/cascadia-code/releases
+
+
+
