@@ -4,6 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
  gc_log.txt
+ gc_durations.csv
 
 target/
 *.exe
