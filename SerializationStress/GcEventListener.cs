@@ -58,10 +58,12 @@ public class GcEventListener : EventListener
 
     protected override void OnEventWritten(EventWrittenEventArgs eventData)
     {
+        var timestamp = eventData.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
         if (eventData.EventName == "GCAllocationTick_V4")
+        {
             return;
+        }
 
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         if (eventData.EventName != null && eventData.Payload != null)
         {
             _writer.WriteLine($"[{timestamp}] [GC ETW] {eventData.EventName}: {string.Join(", ", eventData.Payload)}");

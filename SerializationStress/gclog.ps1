@@ -1,18 +1,18 @@
 $gcReasonMap = @{
-    0 = "SOH allocation"
-    1 = "Induced"
-    2 = "Low memory"
-    3 = "Empty"
-    4 = "LOH allocation"
-    5 = "SOH full"
-    6 = "LOH full"
-    7 = "Induced but not forced"
+    0 = "0 - SOH allocation"
+    1 = "1 - Induced"
+    2 = "2 - Low memory"
+    3 = "3 - Empty"
+    4 = "4 - LOH allocation"
+    5 = "5 - SOH full"
+    6 = "6 - LOH full"
+    7 = "7 - Induced but not forced"
 }
 
 $gcTypeMap = @{
-    0 = "Blocking (foreground)"
-    1 = "Background (non-blocking)"
-    2 = "Background (blocking)"
+    0 = "0 - Blocking (foreground)"
+    1 = "1 - Background (non-blocking)"
+    2 = "2 - Background (blocking)"
 }
 
 
