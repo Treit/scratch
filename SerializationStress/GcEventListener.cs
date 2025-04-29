@@ -1,23 +1,17 @@
-using System;
 using System.Diagnostics.Tracing;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 public class GcEventListener : EventListener
 {
     // For .NET Core+ GC events, use the following:
     // - Provider: Microsoft-Windows-DotNETRuntime
     // - Keywords: 0x1C0000001 (GC + GCHeapSurvivalAndMovement + GCHeapCollect + GCHeapAndTypeNames)
-    // - Level: Verbose
-    // Note: You may need to run as administrator to receive all events.
     private readonly string _providerName = "Microsoft-Windows-DotNETRuntime";
     private readonly EventLevel _level = EventLevel.Verbose;
     private readonly EventKeywords _keywords = (EventKeywords)0x1C0000001;
 
-    private CancellationTokenSource _cts;
-    private Task _listenTask;
-    private StreamWriter _writer;
+    private CancellationTokenSource? _cts;
+    private Task? _listenTask;
+    private StreamWriter? _writer;
     private readonly string _logFilePath;
 
     public GcEventListener(string logFilePath = "gc_log.txt")
@@ -41,7 +35,6 @@ public class GcEventListener : EventListener
 
     private void Listen(CancellationToken token)
     {
-        // Just keep the listener alive
         while (!token.IsCancellationRequested)
         {
             Thread.Sleep(100);
@@ -59,18 +52,18 @@ public class GcEventListener : EventListener
     protected override void OnEventWritten(EventWrittenEventArgs eventData)
     {
         var timestamp = eventData.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        if (eventData.EventName == "GCAllocationTick_V4")
+        if (!eventData.EventName!.StartsWith("GCStart") && !eventData.EventName.StartsWith("GCEnd"))
         {
             return;
         }
 
         if (eventData.EventName != null && eventData.Payload != null)
         {
-            _writer.WriteLine($"[{timestamp}] [GC ETW] {eventData.EventName}: {string.Join(", ", eventData.Payload)}");
+            _writer?.WriteLine($"[{timestamp}] [GC ETW] {eventData.EventName}: {string.Join(", ", eventData.Payload)}");
         }
         else if (eventData.EventName != null)
         {
-            _writer.WriteLine($"[{timestamp}] [GC ETW] {eventData.EventName}");
+            _writer?.WriteLine($"[{timestamp}] [GC ETW] {eventData.EventName}");
         }
     }
 }
