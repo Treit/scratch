@@ -26,7 +26,7 @@ public class StressTest
                     }
                     if (rng.NextDouble() < 0.05)
                     {
-                        await Task.Delay(1, cts.Token);
+                        await Task.Delay(50, cts.Token);
                     }
                 }
             }, cts.Token));

@@ -28,7 +28,7 @@ class Program
                 Console.WriteLine($"Deserialization: start={start:yyyy-MM-dd HH:mm:ss.fff}, end={end:yyyy-MM-dd HH:mm:ss.fff}, duration={elapsed} ms");
             }
 
-            _ = StressTest.RunMemoryPressureTestAsync(16, 10);
+            _ = StressTest.RunMemoryPressureTestAsync(32, 5);
         }
     }
 }
