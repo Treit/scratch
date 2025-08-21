@@ -1,0 +1,21 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CloseProcessExample", "CloseProcessExample.csproj", "{87377CAD-1A3C-4E89-9E2B-94CDCE6067EE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{87377CAD-1A3C-4E89-9E2B-94CDCE6067EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87377CAD-1A3C-4E89-9E2B-94CDCE6067EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87377CAD-1A3C-4E89-9E2B-94CDCE6067EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87377CAD-1A3C-4E89-9E2B-94CDCE6067EE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {16A14501-7FB0-4D2D-9E50-2930DB9CFF61}
+	EndGlobalSection
+EndGlobal
