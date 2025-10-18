@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K-Way Merge Animation</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #111;
+      color: #f5f5f5;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+      gap: 30px;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin: 0;
+      text-align: center;
+    }
+
+    p.subtitle {
+      margin: 0;
+      text-align: center;
+      max-width: 720px;
+      color: #c7c7c7;
+    }
+
+    button {
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      background: linear-gradient(135deg, #58a6ff, #8c72ff);
+      color: #101010;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(88, 166, 255, 0.35);
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .runs,
+    .heap,
+    .output {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: min(960px, 100%);
+    }
+
+    .label {
+      font-weight: 600;
+      color: #9ad1ff;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .cell {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.05rem;
+      transition: transform 0.35s ease, background 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #ececec;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cell.flight {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.55s ease;
+      box-shadow: 0 18px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .cell.consumed {
+      opacity: 0.25;
+      background: rgba(255, 255, 255, 0.02);
+      color: #aaa;
+    }
+
+    .cell.candidate {
+      background: rgba(88, 166, 255, 0.45);
+      color: #0b223e;
+      transform: translateY(-6px);
+      box-shadow: 0 12px 25px rgba(88, 166, 255, 0.4);
+    }
+
+    .cell.selected {
+      background: linear-gradient(135deg, #8c72ff, #58a6ff);
+      color: #0b223e;
+      transform: translateY(-10px) scale(1.05);
+      box-shadow: 0 12px 28px rgba(140, 114, 255, 0.55);
+    }
+
+    @keyframes heap-flash-pulse {
+      0% {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 25px rgba(88, 166, 255, 0.45);
+        filter: brightness(1);
+      }
+      45% {
+        transform: translateY(-14px) scale(1.06);
+        box-shadow: 0 18px 34px rgba(140, 114, 255, 0.6);
+        filter: brightness(1.25);
+      }
+      100% {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 25px rgba(88, 166, 255, 0.4);
+        filter: brightness(1);
+      }
+    }
+
+    .cell.heap-flash {
+      animation: heap-flash-pulse 0.65s ease;
+    }
+
+    .cell.output {
+      background: rgba(88, 166, 255, 0.1);
+      border-style: dashed;
+      color: #6b9ed6;
+    }
+
+    .cell.output.filled {
+      background: linear-gradient(135deg, #58a6ff, #8c72ff);
+      color: #0b223e;
+      border-style: solid;
+      transform: translateY(-4px);
+      box-shadow: 0 10px 20px rgba(88, 166, 255, 0.45);
+    }
+
+    .heap-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 72px;
+    }
+
+    .heap-connector {
+      width: 2px;
+      background: linear-gradient(180deg, rgba(88, 166, 255, 0.4), rgba(255, 255, 255, 0));
+      align-self: stretch;
+      margin: 0 auto;
+    }
+
+    .legend {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.9rem;
+      color: #b9b9b9;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .legend .candidate .legend-swatch {
+      background: rgba(88, 166, 255, 0.45);
+    }
+
+    .legend .selected .legend-swatch {
+      background: linear-gradient(135deg, #8c72ff, #58a6ff);
+    }
+
+    .legend .consumed .legend-swatch {
+      background: rgba(255, 255, 255, 0.08);
+      opacity: 0.4;
+    }
+
+    .run-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      --run-color: #58a6ff;
+      --run-color-rgb: 88, 166, 255;
+    }
+
+    .run-label {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #0b223e;
+      background: rgba(var(--run-color-rgb), 0.32);
+      border: 1px solid rgba(var(--run-color-rgb), 0.55);
+      box-shadow: 0 6px 12px rgba(var(--run-color-rgb), 0.2);
+    }
+
+    .run-row {
+      position: relative;
+      padding-left: 12px;
+      border-left: 4px solid rgba(var(--run-color-rgb), 0.65);
+      border-radius: 12px;
+      gap: 10px;
+    }
+
+    .run-row .cell {
+      border-color: rgba(var(--run-color-rgb), 0.4);
+    }
+
+    .run-row .cell.candidate,
+    .run-row .cell.selected {
+      border-color: rgba(var(--run-color-rgb), 0.75);
+    }
+
+    .run-row .cell:not(.candidate):not(.selected) {
+      background: rgba(var(--run-color-rgb), 0.18);
+    }
+
+    .run-row .cell.consumed {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(var(--run-color-rgb), 0.2);
+    }
+
+    .run-row .cell::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--run-color);
+      top: 6px;
+      right: 6px;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+    }
+
+    .cell.flight::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--run-color, rgba(255, 255, 255, 0.6));
+      top: 6px;
+      right: 6px;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
+    }
+
+    footer {
+      margin-top: auto;
+      font-size: 0.8rem;
+      color: #6d6d6d;
+    }
+
+    @media (max-width: 600px) {
+      .cell {
+        width: 44px;
+        height: 44px;
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>K-Way Merge of Sorted Runs</h1>
+  <p class="subtitle">Watch how a priority queue helps merge multiple sorted runs into one fully sorted sequence. The highlighted boxes show the active candidates and the element chosen next.</p>
+  <div class="legend">
+    <span class="candidate"><span class="legend-swatch"></span> Candidate in the priority queue</span>
+    <span class="selected"><span class="legend-swatch"></span> Element moving to output</span>
+    <span class="consumed"><span class="legend-swatch"></span> Element already merged</span>
+  </div>
+  <div class="controls">
+    <button id="playButton">Replay animation</button>
+    <button id="pauseButton" disabled>Pause</button>
+  </div>
+
+  <section class="runs">
+    <div class="label">Sorted runs</div>
+    <div id="runs" class="row"></div>
+  </section>
+
+  <section class="heap">
+    <div class="label">Priority queue (min-heap)</div>
+    <div id="heap" class="heap-grid"></div>
+    <div class="heap-connector"></div>
+  </section>
+
+  <section class="output">
+    <div class="label">Merged output</div>
+    <div id="output" class="row"></div>
+  </section>
+
+  <footer>Built with vanilla HTML, CSS, and JavaScript.</footer>
+
+  <script>
+    const runsData = [
+      [2, 5, 9, 14],
+      [1, 4, 7, 10, 13],
+      [3, 6, 8, 11, 12]
+    ];
+
+  // Palette used to visually tag each run.
+  const runPalette = ["#58a6ff", "#ff9d72", "#71d17f", "#f2d85c", "#c28bff", "#ffa8de"];
+
+    const hexToRgb = (hex) => {
+      const normalized = hex.replace("#", "");
+      const expanded = normalized.length === 3
+        ? normalized.split("").map((char) => char + char).join("")
+        : normalized.padEnd(6, "0");
+      const value = parseInt(expanded, 16);
+      const r = (value >> 16) & 255;
+      const g = (value >> 8) & 255;
+      const b = value & 255;
+      return [r, g, b];
+    };
+
+    const runLabelFor = (index) => {
+      const alphabetIndex = index % 26;
+      const label = String.fromCharCode(65 + alphabetIndex);
+      if (index < 26) return label;
+      return `${label}${Math.floor(index / 26)}`;
+    };
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    class MinHeap {
+      constructor(compare) {
+        this.compare = compare;
+        this.items = [];
+      }
+
+      push(item) {
+        this.items.push(item);
+        this.bubbleUp(this.items.length - 1);
+      }
+
+      pop() {
+        if (this.items.length === 0) return undefined;
+        const top = this.items[0];
+        const last = this.items.pop();
+        if (this.items.length > 0 && last) {
+          this.items[0] = last;
+          this.bubbleDown(0);
+        }
+        return top;
+      }
+
+      peek() {
+        return this.items[0];
+      }
+
+      clear() {
+        this.items.length = 0;
+      }
+
+      bubbleUp(index) {
+        while (index > 0) {
+          const parent = Math.floor((index - 1) / 2);
+          if (this.compare(this.items[index], this.items[parent]) >= 0) break;
+          [this.items[index], this.items[parent]] = [this.items[parent], this.items[index]];
+          index = parent;
+        }
+      }
+
+      bubbleDown(index) {
+        const length = this.items.length;
+        while (true) {
+          const left = index * 2 + 1;
+          const right = index * 2 + 2;
+          let smallest = index;
+
+          if (left < length && this.compare(this.items[left], this.items[smallest]) < 0) {
+            smallest = left;
+          }
+
+          if (right < length && this.compare(this.items[right], this.items[smallest]) < 0) {
+            smallest = right;
+          }
+
+          if (smallest === index) break;
+
+          [this.items[index], this.items[smallest]] = [this.items[smallest], this.items[index]];
+          index = smallest;
+        }
+      }
+    }
+
+    const runsContainer = document.getElementById("runs");
+    const heapContainer = document.getElementById("heap");
+    const outputContainer = document.getElementById("output");
+    const playButton = document.getElementById("playButton");
+    const pauseButton = document.getElementById("pauseButton");
+
+    const createPauseController = () => {
+      let paused = false;
+      let resumeResolve;
+
+      return {
+        isPaused: () => paused,
+        pause: () => {
+          if (paused) return false;
+          paused = true;
+          return true;
+        },
+        resume: () => {
+          if (!paused) return false;
+          paused = false;
+          if (resumeResolve) {
+            resumeResolve();
+            resumeResolve = undefined;
+          }
+          return true;
+        },
+        waitIfPaused: () => {
+          if (!paused) return Promise.resolve();
+          return new Promise((resolve) => {
+            resumeResolve = resolve;
+          });
+        },
+        reset: () => {
+          paused = false;
+          if (resumeResolve) {
+            resumeResolve();
+            resumeResolve = undefined;
+          }
+        }
+      };
+    };
+
+    const pauseController = createPauseController();
+
+    const waitWithPause = async (ms) => {
+      const step = 30;
+      let elapsed = 0;
+      while (elapsed < ms) {
+        await pauseController.waitIfPaused();
+        const chunk = Math.min(step, ms - elapsed);
+        await sleep(chunk);
+        elapsed += chunk;
+      }
+    };
+
+    const createCell = (value, classes = []) => {
+      const cell = document.createElement("div");
+      cell.classList.add("cell", ...classes);
+      cell.textContent = value;
+      return cell;
+    };
+
+    const renderRuns = () => {
+      runsContainer.innerHTML = "";
+      runsData.forEach((run, runIndex) => {
+        const color = runPalette[runIndex % runPalette.length];
+        const rgb = hexToRgb(color).join(", ");
+
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("run-wrapper");
+        wrapper.dataset.runIndex = runIndex.toString();
+        wrapper.style.setProperty("--run-color", color);
+        wrapper.style.setProperty("--run-color-rgb", rgb);
+
+        const label = document.createElement("div");
+        label.classList.add("run-label");
+        label.textContent = `Run ${runLabelFor(runIndex)}`;
+        wrapper.appendChild(label);
+
+        const row = document.createElement("div");
+        row.classList.add("row", "run-row");
+        row.dataset.runIndex = runIndex.toString();
+        row.style.setProperty("--run-color", color);
+        row.style.setProperty("--run-color-rgb", rgb);
+
+        run.forEach((value, valueIndex) => {
+          const cell = createCell(value);
+          cell.dataset.runIndex = runIndex.toString();
+          cell.dataset.valueIndex = valueIndex.toString();
+          row.appendChild(cell);
+        });
+
+        wrapper.appendChild(row);
+        runsContainer.appendChild(wrapper);
+      });
+    };
+
+    const renderOutputShell = (length) => {
+      outputContainer.innerHTML = "";
+      for (let i = 0; i < length; i += 1) {
+        const cell = createCell("", ["output"]);
+        cell.dataset.outputIndex = i.toString();
+        outputContainer.appendChild(cell);
+      }
+    };
+
+    const resetClasses = () => {
+      document.querySelectorAll(".cell").forEach((cell) => {
+        cell.classList.remove("candidate", "selected");
+      });
+    };
+
+    const updateHeapDisplay = (heapItems) => {
+      heapContainer.innerHTML = "";
+      heapItems.forEach((item) => {
+        const { value, runIndex, valueIndex } = item;
+        const cell = createCell(value, ["candidate"]);
+        cell.dataset.heapRunIndex = runIndex.toString();
+        cell.dataset.heapValueIndex = valueIndex.toString();
+        heapContainer.appendChild(cell);
+      });
+    };
+
+    const markRunCell = (runIndex, valueIndex, state) => {
+      const selector = `.cell[data-run-index="${runIndex}"][data-value-index="${valueIndex}"]`;
+      const cell = document.querySelector(selector);
+      if (!cell) return;
+      if (state === "candidate") {
+        cell.classList.add("candidate");
+      } else if (state === "selected") {
+        cell.classList.add("selected");
+      } else if (state === "consumed") {
+        cell.classList.add("consumed");
+        cell.classList.remove("candidate", "selected");
+      }
+    };
+
+    const fillOutputCell = (index, value) => {
+      const cell = document.querySelector(`.cell.output[data-output-index="${index}"]`);
+      if (!cell) return;
+      cell.textContent = value;
+      cell.classList.add("filled");
+    };
+
+    const animateRunToHeap = async (runIndex, valueIndex) => {
+      await pauseController.waitIfPaused();
+      const sourceSelector = `.cell[data-run-index="${runIndex}"][data-value-index="${valueIndex}"]`;
+      const targetSelector = `.cell[data-heap-run-index="${runIndex}"][data-heap-value-index="${valueIndex}"]`;
+      const source = document.querySelector(sourceSelector);
+      const target = heapContainer.querySelector(targetSelector);
+      if (!source || !target) return;
+
+      const runRow = source.closest(".run-row");
+      const flight = source.cloneNode(true);
+      flight.classList.remove("candidate", "selected", "consumed");
+      flight.classList.add("flight");
+
+      const sourceRect = source.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const computed = window.getComputedStyle(source);
+
+      flight.style.left = `${sourceRect.left}px`;
+      flight.style.top = `${sourceRect.top}px`;
+      flight.style.width = `${sourceRect.width}px`;
+      flight.style.height = `${sourceRect.height}px`;
+      flight.style.transform = "translate(0, 0) scale(1)";
+      flight.style.opacity = "1";
+  flight.style.position = "fixed";
+      flight.style.background = computed.backgroundColor;
+      flight.style.borderColor = computed.borderColor;
+      flight.style.color = computed.color;
+
+      if (runRow) {
+        const rowStyle = window.getComputedStyle(runRow);
+        const runColor = rowStyle.getPropertyValue("--run-color");
+        const runColorRgb = rowStyle.getPropertyValue("--run-color-rgb");
+        if (runColor) flight.style.setProperty("--run-color", runColor.trim());
+        if (runColorRgb) flight.style.setProperty("--run-color-rgb", runColorRgb.trim());
+      }
+
+      document.body.appendChild(flight);
+
+      await new Promise((resolve) => {
+        let finished = false;
+        const cleanup = () => {
+          if (finished) return;
+          finished = true;
+          flight.removeEventListener("transitionend", cleanup);
+          if (flight.parentElement) {
+            flight.parentElement.removeChild(flight);
+          }
+          resolve();
+        };
+
+        requestAnimationFrame(() => {
+          const dx = targetRect.left - sourceRect.left;
+          const dy = targetRect.top - sourceRect.top;
+          flight.style.transform = `translate(${dx}px, ${dy}px) scale(0.9)`;
+          flight.style.opacity = "0.15";
+          flight.addEventListener("transitionend", cleanup, { once: true });
+          setTimeout(cleanup, 700);
+        });
+      });
+    };
+
+    const flashHeapItem = (runIndex, valueIndex) => {
+      const selector = `.cell[data-heap-run-index="${runIndex}"][data-heap-value-index="${valueIndex}"]`;
+      const cell = heapContainer.querySelector(selector);
+      if (!cell) return;
+      cell.classList.remove("heap-flash");
+      void cell.offsetWidth;
+      cell.classList.add("heap-flash");
+      setTimeout(() => {
+        if (!cell.parentElement) return;
+        cell.classList.remove("heap-flash");
+      }, 650);
+    };
+
+    const animateMerge = async () => {
+      playButton.disabled = true;
+      pauseController.reset();
+      pauseButton.disabled = false;
+      pauseButton.textContent = "Pause";
+      resetClasses();
+      renderRuns();
+      renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
+      const heap = new MinHeap((a, b) => a.value - b.value);
+      const positions = new Array(runsData.length).fill(0);
+
+      for (let runIndex = 0; runIndex < runsData.length; runIndex += 1) {
+        const run = runsData[runIndex];
+        if (!run || run.length === 0) continue;
+        const valueIndex = 0;
+        markRunCell(runIndex, valueIndex, "candidate");
+        heap.push({
+          value: run[valueIndex],
+          runIndex,
+          valueIndex,
+        });
+        updateHeapDisplay(heap.items);
+        await animateRunToHeap(runIndex, valueIndex);
+      }
+
+      await waitWithPause(900);
+
+      let outputIndex = 0;
+
+      while (heap.items.length > 0) {
+        await pauseController.waitIfPaused();
+        const current = heap.peek();
+        updateHeapDisplay(heap.items);
+        if (current) {
+          flashHeapItem(current.runIndex, current.valueIndex);
+        }
+        markRunCell(current.runIndex, current.valueIndex, "selected");
+        await waitWithPause(900);
+
+        await pauseController.waitIfPaused();
+        const next = heap.pop();
+        if (!next) break;
+        updateHeapDisplay(heap.items);
+
+        markRunCell(next.runIndex, next.valueIndex, "consumed");
+        fillOutputCell(outputIndex, next.value);
+        outputIndex += 1;
+        await waitWithPause(600);
+
+        positions[next.runIndex] += 1;
+        const nextIndex = positions[next.runIndex];
+        const run = runsData[next.runIndex];
+        if (run && nextIndex < run.length) {
+          await pauseController.waitIfPaused();
+          markRunCell(next.runIndex, nextIndex, "candidate");
+          heap.push({
+            value: run[nextIndex],
+            runIndex: next.runIndex,
+            valueIndex: nextIndex,
+          });
+          updateHeapDisplay(heap.items);
+          await animateRunToHeap(next.runIndex, nextIndex);
+          await waitWithPause(600);
+        }
+      }
+
+      playButton.disabled = false;
+      pauseController.reset();
+      pauseButton.disabled = true;
+      pauseButton.textContent = "Pause";
+    };
+
+    playButton.addEventListener("click", () => {
+      renderRuns();
+      renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
+      animateMerge();
+    });
+
+    pauseButton.addEventListener("click", () => {
+      if (pauseController.isPaused()) {
+        pauseController.resume();
+        pauseButton.textContent = "Pause";
+      } else if (pauseController.pause()) {
+        pauseButton.textContent = "Resume";
+      }
+    });
+
+    renderRuns();
+    renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
+    animateMerge();
+  </script>
+</body>
+</html>
