@@ -184,42 +184,6 @@
       margin: 0 auto;
     }
 
-    .legend {
-      display: flex;
-      gap: 18px;
-      flex-wrap: wrap;
-      justify-content: center;
-      font-size: 0.9rem;
-      color: #b9b9b9;
-    }
-
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .legend-swatch {
-      width: 18px;
-      height: 18px;
-      border-radius: 6px;
-      display: inline-block;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .legend .candidate .legend-swatch {
-      background: rgba(88, 166, 255, 0.45);
-    }
-
-    .legend .selected .legend-swatch {
-      background: linear-gradient(135deg, #8c72ff, #58a6ff);
-    }
-
-    .legend .consumed .legend-swatch {
-      background: rgba(255, 255, 255, 0.08);
-      opacity: 0.4;
-    }
-
     .run-wrapper {
       display: flex;
       flex-wrap: wrap;
@@ -268,29 +232,6 @@
       border-color: rgba(var(--run-color-rgb), 0.2);
     }
 
-    .run-row .cell::after {
-      content: "";
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--run-color);
-      top: 6px;
-      right: 6px;
-      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
-    }
-
-    .cell.flight::after {
-      content: "";
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--run-color, rgba(255, 255, 255, 0.6));
-      top: 6px;
-      right: 6px;
-      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
-    }
 
     footer {
       margin-top: auto;
@@ -310,14 +251,8 @@
 <body>
   <h1>K-Way Merge of Sorted Runs</h1>
   <p class="subtitle">Watch how a priority queue helps merge multiple sorted runs into one fully sorted sequence. The highlighted boxes show the active candidates and the element chosen next.</p>
-  <div class="legend">
-    <span class="candidate"><span class="legend-swatch"></span> Candidate in the priority queue</span>
-    <span class="selected"><span class="legend-swatch"></span> Element moving to output</span>
-    <span class="consumed"><span class="legend-swatch"></span> Element already merged</span>
-  </div>
   <div class="controls">
-    <button id="playButton">Replay animation</button>
-    <button id="pauseButton" disabled>Pause</button>
+    <button id="controlButton">Start</button>
   </div>
 
   <section class="runs">
@@ -345,8 +280,8 @@
       [3, 6, 8, 11, 12]
     ];
 
-  // Palette used to visually tag each run.
-  const runPalette = ["#58a6ff", "#ff9d72", "#71d17f", "#f2d85c", "#c28bff", "#ffa8de"];
+    // Palette used to visually tag each run.
+    const runPalette = ["#58a6ff", "#ff9d72", "#71d17f", "#f2d85c", "#c28bff", "#ffa8de"];
 
     const hexToRgb = (hex) => {
       const normalized = hex.replace("#", "");
@@ -431,11 +366,13 @@
       }
     }
 
-    const runsContainer = document.getElementById("runs");
-    const heapContainer = document.getElementById("heap");
-    const outputContainer = document.getElementById("output");
-    const playButton = document.getElementById("playButton");
-    const pauseButton = document.getElementById("pauseButton");
+  const runsContainer = document.getElementById("runs");
+  const heapContainer = document.getElementById("heap");
+  const outputContainer = document.getElementById("output");
+  const controlButton = document.getElementById("controlButton");
+
+  let animationTask = null;
+  let animationState = "idle"; // 'idle' | 'running' | 'paused'
 
     const createPauseController = () => {
       let paused = false;
@@ -474,6 +411,32 @@
     };
 
     const pauseController = createPauseController();
+
+    const setControlButtonLabel = () => {
+      controlButton.textContent = animationState === "running" ? "Pause" : "Start";
+    };
+
+    const startOrResumeAnimation = () => {
+      if (animationTask === null) {
+        pauseController.reset();
+        animationState = "running";
+        setControlButtonLabel();
+        animationTask = (async () => {
+          try {
+            await animateMerge();
+          } finally {
+            animationTask = null;
+            animationState = "idle";
+            pauseController.reset();
+            setControlButtonLabel();
+          }
+        })();
+      } else {
+        animationState = "running";
+        setControlButtonLabel();
+        pauseController.resume();
+      }
+    };
 
     const waitWithPause = async (ms) => {
       const step = 30;
@@ -650,10 +613,6 @@
     };
 
     const animateMerge = async () => {
-      playButton.disabled = true;
-      pauseController.reset();
-      pauseButton.disabled = false;
-      pauseButton.textContent = "Pause";
       resetClasses();
       renderRuns();
       renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
@@ -715,30 +674,22 @@
         }
       }
 
-      playButton.disabled = false;
-      pauseController.reset();
-      pauseButton.disabled = true;
-      pauseButton.textContent = "Pause";
     };
 
-    playButton.addEventListener("click", () => {
-      renderRuns();
-      renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
-      animateMerge();
-    });
-
-    pauseButton.addEventListener("click", () => {
-      if (pauseController.isPaused()) {
-        pauseController.resume();
-        pauseButton.textContent = "Pause";
-      } else if (pauseController.pause()) {
-        pauseButton.textContent = "Resume";
+    controlButton.addEventListener("click", () => {
+      if (animationState === "running") {
+        if (pauseController.pause()) {
+          animationState = "paused";
+          setControlButtonLabel();
+        }
+      } else {
+        startOrResumeAnimation();
       }
     });
 
     renderRuns();
     renderOutputShell(runsData.reduce((acc, run) => acc + run.length, 0));
-    animateMerge();
+    setControlButtonLabel();
   </script>
 </body>
 </html>
