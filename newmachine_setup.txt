@@ -31,12 +31,14 @@ choco install winfetch -f
 winget install Meld.Meld
 winget install Nightingale
 winget install LINQPad.LINQPad.8
+winget install zed
+winget install fzf
 Install-Module PSReadline
 
 # Non-CLI installs
-fzf - https://github.com/junegunn/fzf/releases
 voidtools.everything CLI - https://www.voidtools.com/support/everything/command_line_interface/
 cascadia code - https://github.com/microsoft/cascadia-code/releases
 
-
+# Get rid of the "modern" right-click menu:
+reg.exe add "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /f /ve
 
