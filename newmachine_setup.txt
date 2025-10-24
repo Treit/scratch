@@ -14,7 +14,7 @@ winget install Microsoft.PowerShell
 Install-Module PSReadline # From pwsh window
 cargo install zoxide
 winget install github.cli
-winget install Microsoft.DotNet.SDK.8
+winget install Microsoft.DotNet.SDK.9
 winget install notepad++
 winget install python
 winget install neovim
