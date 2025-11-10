@@ -19,6 +19,7 @@ winget install notepad++
 winget install python
 winget install neovim
 winget install voidtools.everything
+winget install voidtools.Everything.Cli
 winget install sysinternals
 winget install zoomit
 winget install KirillOsenkov.MSBuildStructuredLogViewer
@@ -33,10 +34,10 @@ winget install Nightingale
 winget install LINQPad.LINQPad.8
 winget install zed
 winget install fzf
+winget install Microsoft.Azure.StorageExplorer
 Install-Module PSReadline
 
 # Non-CLI installs
-voidtools.everything CLI - https://www.voidtools.com/support/everything/command_line_interface/
 cascadia code - https://github.com/microsoft/cascadia-code/releases
 
 # Get rid of the "modern" right-click menu:
