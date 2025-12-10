@@ -41,6 +41,7 @@ winget install fzf
 winget install Microsoft.Azure.StorageExplorer
 winget install Bruno.Bruno
 npm install -g @usebruno/cli
+winget install GitHub.Copilot
 
 # Non-CLI installs
 cascadia code - https://github.com/microsoft/cascadia-code/releases
