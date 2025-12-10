@@ -1,6 +1,7 @@
 # CLI installs
 winget install Git.Git
 winget install github.cli
+winget install Microsoft.Edit
 winget install rustup
 cargo install ripgrep -F pcre2
 cargo install fastmod
@@ -49,3 +50,6 @@ reg.exe add "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\
 
 # Get rid of "modern" notepad
 Get-AppxPackage Microsoft.WindowsNotepad | Remove-AppxPackage
+
+# Set Microsoft.Edit (edit.exe) as the default git editor
+git config --global core.editor edit.exe
