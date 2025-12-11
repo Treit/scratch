@@ -23,7 +23,7 @@ winget install python
 winget install neovim
 winget install voidtools.everything
 winget install voidtools.Everything.Cli
-winget install sysinternals
+winget install -e Microsoft.Sysinternals.Suite
 winget install zoomit
 winget install KirillOsenkov.MSBuildStructuredLogViewer
 winget install -e --id Microsoft.AzureCLI
