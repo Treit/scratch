@@ -40,6 +40,7 @@ winget install zed
 winget install fzf
 winget install Microsoft.Azure.StorageExplorer
 winget install Bruno.Bruno
+winget install sharkdp.fd
 npm install -g @usebruno/cli
 winget install GitHub.Copilot
 
