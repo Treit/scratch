@@ -6,7 +6,7 @@ if (!string.IsNullOrEmpty(context.Data))
         foreach (var item in list)
         {
             var itemInfo = item.Split(":").ToList();
-            if (itemInfo.Count == 2 && itemInfo[0] == ConstantsLabel)
+            if (itemInfo.Count == 2 && itemInfo[0] == Constants.Label)
             {
                 Req.Add(Constants.Label, itemInfo[1]);
             }
