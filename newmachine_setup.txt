@@ -44,6 +44,7 @@ winget install sharkdp.fd
 npm install -g @usebruno/cli
 winget install GitHub.Copilot
 winget install icsharpcode.ILSpy
+winget install 7zip.7zip
 
 # Non-CLI installs
 cascadia code - https://github.com/microsoft/cascadia-code/releases
