@@ -49,6 +49,10 @@ _FRONT_MATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _QUOTED_RE = re.compile(r"^\s*[\"'](.*)[\"']\s*$")
 _H1_RE = re.compile(r"^# (.+?)$\n?", re.MULTILINE)
 _MERMAID_BLOCK_RE = re.compile(r"```mermaid\n(.*?)\n```", re.DOTALL)
+_H2_MANUAL_NUM_RE = re.compile(r"^(##[ \t]+)\d+(?:\.\d+)*\.?[ \t]+", re.MULTILINE)
+_HTML_H2_RE = re.compile(r"<h2\b[^>]*>", re.IGNORECASE)
+_HTML_P_OPEN_RE = re.compile(r"<p\b([^>]*)>", re.IGNORECASE)
+_HTML_CLASS_ATTR_RE = re.compile(r'class\s*=\s*"([^"]*)"', re.IGNORECASE)
 
 
 def _parse_front_matter(text: str) -> tuple[dict[str, str], str]:
@@ -85,6 +89,47 @@ def _extract_first_h1(body: str) -> tuple[str | None, str]:
     title = m.group(1).strip()
     body = body[: m.start()] + body[m.end():]
     return title, body
+
+
+def _strip_h2_manual_numbers(body: str) -> str:
+    """Remove leading manual section numbers from H2 lines.
+
+    `## 1. Overview` becomes `## Overview` so CSS counters do not double-number.
+    Leaves H3+ alone (manual subsection numbers are commonly desired).
+    """
+    return _H2_MANUAL_NUM_RE.sub(r"\1", body)
+
+
+def _add_class(attrs: str, cls: str) -> str:
+    m = _HTML_CLASS_ATTR_RE.search(attrs)
+    if m:
+        existing = m.group(1).split()
+        if cls in existing:
+            result = attrs
+        else:
+            new = " ".join(existing + [cls])
+            result = attrs[: m.start()] + f'class="{new}"' + attrs[m.end():]
+    else:
+        result = f'{attrs} class="{cls}"' if attrs else f' class="{cls}"'
+    if result and not result.startswith((" ", "\t")):
+        result = " " + result
+    return result
+
+
+def _tag_lead_paragraph(html: str) -> str:
+    """Add ``class="lead"`` to the paragraph that should carry the drop cap.
+
+    Picks the first ``<p>`` that follows the first ``<h2>`` so pseudo-front-matter
+    paragraphs above the first section do not steal the drop cap. Falls back to
+    the first ``<p>`` overall when the document has no ``<h2>``.
+    """
+    h2 = _HTML_H2_RE.search(html)
+    search_from = h2.end() if h2 else 0
+    p = _HTML_P_OPEN_RE.search(html, search_from)
+    if not p:
+        return html
+    new_attrs = _add_class(p.group(1), "lead")
+    return html[: p.start()] + f"<p{new_attrs}>" + html[p.end():]
 
 
 def _replace_mermaid_blocks(body: str, enable_mermaid: bool) -> tuple[str, bool]:
@@ -263,7 +308,7 @@ _TEMPLATE = """<!doctype html>
     margin: 12pt 0 2pt 0;
   }}
   p {{ margin: 0 0 7pt 0; }}
-  .body-content > p:first-of-type::first-letter {{
+  .body-content p.lead::first-letter {{
     initial-letter: 3 2;
     -webkit-initial-letter: 3 2;
     font-weight: 700;
@@ -317,12 +362,17 @@ _TEMPLATE = """<!doctype html>
   a:hover {{ border-bottom-style: solid; }}
   hr {{ border: 0; border-top: 1px solid var(--rule); margin: 18pt 0; }}
   blockquote {{
-    border-left: 2px solid var(--accent-bar);
+    border-left: 3px solid var(--accent-bar);
     margin: 8pt 0;
-    padding: 2pt 0 2pt 12pt;
-    color: var(--fg-muted);
-    font-style: italic;
+    padding: 6pt 10pt 6pt 12pt;
+    color: var(--fg);
+    background: var(--code-bg);
+    text-align: left;
+    hyphens: manual;
+    font-style: normal;
   }}
+  blockquote p {{ margin: 0 0 6pt 0; }}
+  blockquote p:last-child {{ margin-bottom: 0; }}
   figure {{
     margin: 10pt 0 14pt 0;
     border-top: 1px solid var(--rule);
@@ -405,6 +455,7 @@ def render(
 ) -> str:
     meta, body = _parse_front_matter(md_text)
     h1_title, body = _extract_first_h1(body)
+    body = _strip_h2_manual_numbers(body)
     body, used_mermaid = _replace_mermaid_blocks(body, enable_mermaid)
 
     body_html = markdown.markdown(
@@ -412,6 +463,7 @@ def render(
         extensions=["tables", "fenced_code", "sane_lists", "attr_list"],
         output_format="html5",
     )
+    body_html = _tag_lead_paragraph(body_html)
 
     title = meta.get("title", "").strip() or h1_title or "Document"
     description = meta.get("description", "").strip()
