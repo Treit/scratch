@@ -18,13 +18,13 @@ uv pip install markdown
 ```powershell
 python qexify.py path\to\spec.md
 python qexify.py path\to\spec.md -o path\to\spec.html
-python qexify.py spec.md --mermaid --masthead "DESIGN SPEC" --issue "MAY 2026"
+python qexify.py spec.md --no-mermaid --masthead "DESIGN SPEC" --issue "MAY 2026"
 ```
 
 The script is self-contained and emits a single HTML file with no external CSS.
-With `--mermaid`, fenced ```mermaid``` code blocks are rendered via Mermaid.js
-from a CDN at view time. Without it, mermaid blocks render as plain code blocks
-and the output is fully offline.
+By default, fenced ```mermaid``` code blocks render at view time via Mermaid.js
+loaded from a CDN. Pass `--no-mermaid` to keep them as plain code blocks if you
+need the output to be fully offline.
 
 ## Front matter
 
@@ -52,3 +52,7 @@ recognized; this is intentionally not a full YAML parser.
   through.
 - A print stylesheet sets `@page` margins to 0.5"/0.55" and removes the screen
   frame so the article uses the full printable area.
+- A small `Dark` / `Light` toggle button in the top-right corner switches the
+  page palette. Light is the default; the choice persists per-origin via
+  `localStorage`. The toggle is hidden in print, and printing always uses the
+  light palette regardless of the on-screen state.

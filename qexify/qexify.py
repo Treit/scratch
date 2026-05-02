@@ -8,9 +8,9 @@ print, and a print stylesheet that drops the screen frame and uses the full page
 Inputs:
   - A Markdown file. YAML front matter with `title`, `description`, `author`,
     and `ms.date` is parsed and rendered as the doctitle, deck, and byline.
-  - Optional `--mermaid` flag: any fenced ```mermaid ... ``` block is rendered
-    via Mermaid.js (CDN) at view time. By default mermaid blocks are kept as
-    plain code blocks so the output is fully offline.
+  - Optional `--no-mermaid` flag: by default, fenced ```mermaid ... ``` blocks
+    are rendered via Mermaid.js (CDN) at view time. Pass `--no-mermaid` to
+    keep them as plain code blocks for fully offline output.
   - Optional `--masthead` to override the masthead text (default: "DESIGN SPEC").
   - Optional `--issue` to override the right-hand masthead label
     (default: today's month and year).
@@ -108,23 +108,79 @@ _TEMPLATE = """<!doctype html>
 <meta charset="utf-8"/>
 <title>{html_title}</title>
 <style>
-  html {{ background: #ece9df; }}
+  :root {{
+    --bg-page: #ece9df;
+    --bg-body: #fff;
+    --fg: #111;
+    --fg-muted: #333;
+    --fg-dim: #222;
+    --rule: #000;
+    --accent: #6b1f0a;
+    --accent-bar: #b04a2f;
+    --code-bg: #f5f2e8;
+    --table-stripe: #fafaf6;
+    --shadow: 0 1px 3px rgba(0,0,0,0.18);
+  }}
+  :root[data-theme="dark"] {{
+    --bg-page: #0e0d0b;
+    --bg-body: #1a1916;
+    --fg: #e8e4d8;
+    --fg-muted: #c9c4b6;
+    --fg-dim: #d4cfc0;
+    --rule: #e8e4d8;
+    --accent: #e89478;
+    --accent-bar: #d6724f;
+    --code-bg: #25231e;
+    --table-stripe: #211f1b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.6);
+  }}
+  html {{ background: var(--bg-page); }}
   body {{
     max-width: 7.0in;
     margin: 0.6in auto;
     padding: 0.6in 0.7in;
-    background: #fff;
-    color: #111;
+    background: var(--bg-body);
+    color: var(--fg);
     font-family: "Charter", "Iowan Old Style", "Georgia", serif;
     font-size: 10.5pt;
     line-height: 1.42;
     hyphens: auto;
     text-align: justify;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    box-shadow: var(--shadow);
   }}
+  .theme-toggle {{
+    position: fixed;
+    top: 10px;
+    right: 14px;
+    z-index: 100;
+    font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: var(--bg-body);
+    color: var(--fg);
+    border: 1px solid var(--rule);
+    padding: 4pt 8pt;
+    cursor: pointer;
+    border-radius: 2px;
+    opacity: 0.85;
+  }}
+  .theme-toggle:hover {{ opacity: 1; }}
   @page {{ margin: 0.5in 0.55in; }}
   @media print {{
-    html {{ background: #fff; }}
+    :root {{
+      --bg-page: #fff;
+      --bg-body: #fff;
+      --fg: #111;
+      --fg-muted: #333;
+      --fg-dim: #222;
+      --rule: #000;
+      --accent: #000;
+      --accent-bar: #000;
+      --code-bg: #f5f2e8;
+      --table-stripe: #fafaf6;
+      --shadow: none;
+    }}
     body {{
       max-width: none;
       margin: 0;
@@ -133,14 +189,15 @@ _TEMPLATE = """<!doctype html>
       font-size: 10.5pt;
     }}
     a {{ color: #000; }}
+    .theme-toggle {{ display: none; }}
     h2, h3, table, pre, figure {{ page-break-inside: avoid; }}
   }}
   h1, h2, h3, h4, h5, h6, .masthead, .caption, .figlabel, .byline, .doctitle {{
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   }}
   .masthead {{
-    border-top: 3px solid #000;
-    border-bottom: 1px solid #000;
+    border-top: 3px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
     padding: 6pt 0 4pt 0;
     margin-bottom: 22pt;
     display: flex;
@@ -166,7 +223,7 @@ _TEMPLATE = """<!doctype html>
     font-size: 11.5pt;
     line-height: 1.38;
     margin: 0 0 14pt 0;
-    color: #222;
+    color: var(--fg-dim);
     text-align: left;
     hyphens: none;
   }}
@@ -174,17 +231,17 @@ _TEMPLATE = """<!doctype html>
     font-size: 8.5pt;
     text-transform: uppercase;
     letter-spacing: 0.10em;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid var(--rule);
     padding-bottom: 4pt;
     margin: 0 0 18pt 0;
-    color: #333;
+    color: var(--fg-muted);
   }}
   body {{ counter-reset: h2num; }}
   h2 {{
     font-size: 11pt;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid var(--rule);
     padding-bottom: 2pt;
     margin: 22pt 0 8pt 0;
     counter-increment: h2num;
@@ -222,26 +279,26 @@ _TEMPLATE = """<!doctype html>
     font-size: 9.5pt;
   }}
   th, td {{
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
     padding: 4pt 6pt;
     text-align: left;
     vertical-align: top;
   }}
   th {{
-    background: #f5f2e8;
-    border-top: 2px solid #000;
-    border-bottom: 1px solid #000;
+    background: var(--code-bg);
+    border-top: 2px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     font-size: 9pt;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }}
-  tr:nth-child(even) td {{ background: #fafaf6; }}
+  tr:nth-child(even) td {{ background: var(--table-stripe); }}
   code {{
     font-family: "SFMono-Regular", "Consolas", monospace;
     font-size: 90%;
-    background: #f5f2e8;
+    background: var(--code-bg);
     padding: 0 2pt;
     border-radius: 2px;
   }}
@@ -249,41 +306,74 @@ _TEMPLATE = """<!doctype html>
     font-family: "SFMono-Regular", "Consolas", monospace;
     font-size: 8.5pt;
     line-height: 1.35;
-    background: #f5f2e8;
-    border-left: 2px solid #000;
+    background: var(--code-bg);
+    border-left: 2px solid var(--rule);
     padding: 6pt 8pt;
     overflow-x: auto;
     margin: 8pt 0 12pt 0;
   }}
   pre code {{ background: none; padding: 0; }}
-  a {{ color: #6b1f0a; text-decoration: none; border-bottom: 1px dotted #6b1f0a; }}
+  a {{ color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }}
   a:hover {{ border-bottom-style: solid; }}
-  hr {{ border: 0; border-top: 1px solid #000; margin: 18pt 0; }}
+  hr {{ border: 0; border-top: 1px solid var(--rule); margin: 18pt 0; }}
   blockquote {{
-    border-left: 2px solid #b04a2f;
+    border-left: 2px solid var(--accent-bar);
     margin: 8pt 0;
     padding: 2pt 0 2pt 12pt;
-    color: #333;
+    color: var(--fg-muted);
     font-style: italic;
   }}
   figure {{
     margin: 10pt 0 14pt 0;
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
     padding: 10pt 0;
-    background: #fff;
+    background: var(--bg-body);
   }}
   figcaption {{
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     font-size: 9pt;
     text-align: center;
     margin-top: 6pt;
-    color: #333;
+    color: var(--fg-muted);
   }}
   .mermaid {{ text-align: center; }}
 </style>
-{mermaid_script}</head>
+{mermaid_script}<script>
+  (function() {{
+    try {{
+      var saved = localStorage.getItem('qexify-theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    }} catch (e) {{}}
+  }})();
+</script>
+</head>
 <body>
+<button class="theme-toggle" type="button" id="qexifyThemeToggle" aria-label="Toggle dark mode">Dark</button>
+<script>
+  (function() {{
+    var btn = document.getElementById('qexifyThemeToggle');
+    function label() {{
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      btn.textContent = dark ? 'Light' : 'Dark';
+    }}
+    label();
+    btn.addEventListener('click', function() {{
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (dark) {{
+        document.documentElement.removeAttribute('data-theme');
+        try {{ localStorage.setItem('qexify-theme', 'light'); }} catch (e) {{}}
+      }} else {{
+        document.documentElement.setAttribute('data-theme', 'dark');
+        try {{ localStorage.setItem('qexify-theme', 'dark'); }} catch (e) {{}}
+      }}
+      label();
+      if (window.mermaid && document.querySelector('.mermaid')) {{
+        location.reload();
+      }}
+    }});
+  }})();
+</script>
 <div class="masthead">
   <span class="title">{masthead}</span>
   <span class="issue">{issue}</span>
@@ -299,7 +389,10 @@ _TEMPLATE = """<!doctype html>
 _MERMAID_SCRIPT = (
     '<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js">'
     "</script>\n"
-    "<script>mermaid.initialize({startOnLoad:true,theme:'neutral'});</script>\n"
+    "<script>(function(){"
+    "var dark=document.documentElement.getAttribute('data-theme')==='dark';"
+    "mermaid.initialize({startOnLoad:true,theme:dark?'dark':'neutral'});"
+    "})();</script>\n"
 )
 
 
@@ -308,7 +401,7 @@ def render(
     *,
     masthead: str = "DESIGN SPEC",
     issue: str | None = None,
-    enable_mermaid: bool = False,
+    enable_mermaid: bool = True,
 ) -> str:
     meta, body = _parse_front_matter(md_text)
     h1_title, body = _extract_first_h1(body)
@@ -375,8 +468,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--mermaid",
+        dest="mermaid",
         action="store_true",
-        help="Render fenced ```mermaid blocks via Mermaid.js (adds a CDN script tag).",
+        default=True,
+        help="Render fenced ```mermaid blocks via Mermaid.js (default).",
+    )
+    p.add_argument(
+        "--no-mermaid",
+        dest="mermaid",
+        action="store_false",
+        help="Keep mermaid blocks as plain code blocks for fully offline output.",
     )
     args = p.parse_args(argv)
 
