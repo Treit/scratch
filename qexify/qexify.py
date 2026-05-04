@@ -11,7 +11,11 @@ Inputs:
   - Optional `--no-mermaid` flag: by default, fenced ```mermaid ... ``` blocks
     are rendered via Mermaid.js (CDN) at view time. Pass `--no-mermaid` to
     keep them as plain code blocks for fully offline output.
-  - Optional `--masthead` to override the masthead text (default: "DESIGN SPEC").
+  - Optional `--masthead` to override the left-hand masthead label. If not
+    given, qexify infers a label from front-matter (`masthead` or `kind`),
+    then by keyword-scanning the H1, top of the body, and filename
+    ("benchmark" -> BENCHMARK, "changelog" -> CHANGELOG, "design spec" ->
+    DESIGN SPEC, etc.). Falls back to "ARTICLE".
   - Optional `--issue` to override the right-hand masthead label
     (default: today's month and year).
 
@@ -35,6 +39,12 @@ import sys
 from pathlib import Path
 
 try:
+    from pygments.formatters import HtmlFormatter as _PygmentsHtmlFormatter
+    _PYGMENTS_AVAILABLE = True
+except ImportError:
+    _PYGMENTS_AVAILABLE = False
+
+try:
     import markdown
 except ImportError:
     sys.stderr.write(
@@ -53,6 +63,35 @@ _H2_MANUAL_NUM_RE = re.compile(r"^(##[ \t]+)\d+(?:\.\d+)*\.?[ \t]+", re.MULTILIN
 _HTML_H2_RE = re.compile(r"<h2\b[^>]*>", re.IGNORECASE)
 _HTML_P_OPEN_RE = re.compile(r"<p\b([^>]*)>", re.IGNORECASE)
 _HTML_CLASS_ATTR_RE = re.compile(r'class\s*=\s*"([^"]*)"', re.IGNORECASE)
+_HTML_TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
+_HTML_FIRST_TR_RE = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+_HTML_TH_TD_OPEN_RE = re.compile(r"<t[hd]\b", re.IGNORECASE)
+
+_WIDE_TABLE_THRESHOLD = 8  # columns at or above this count are flagged "wide"
+
+# Masthead inference rules. First match wins. Order: most specific first.
+_MASTHEAD_RULES: tuple[tuple[str, str], ...] = (
+    (r"\bpost[\s\-]?mortem\b", "POST-MORTEM"),
+    (r"\bretrospective\b", "RETROSPECTIVE"),
+    (r"\bbenchmarkdotnet\b", "BENCHMARK"),
+    (r"\brelease[\s\-]+notes?\b", "RELEASE NOTES"),
+    (r"\bchangelog\b", "CHANGELOG"),
+    (r"\brfc[\s\-:]+\d+\b", "RFC"),
+    (r"\bdesign[\s\-]+spec(ification)?s?\b", "DESIGN SPEC"),
+    (r"\bdesign[\s\-]+doc(ument)?s?\b", "DESIGN DOC"),
+    (r"\bspecification\b", "SPECIFICATION"),
+    (r"\bproposal\b", "PROPOSAL"),
+    (r"\btutorial\b", "TUTORIAL"),
+    (r"\bhow[\s\-]?to\b", "HOW-TO"),
+    (r"\brunbook\b", "RUNBOOK"),
+    (r"\bplaybook\b", "PLAYBOOK"),
+    (r"\bguide\b", "GUIDE"),
+    (r"\bbenchmark\w*\b", "BENCHMARK"),
+    (r"\b(readme)\b", "README"),
+)
+_MASTHEAD_PATTERNS = tuple(
+    (re.compile(pattern, re.IGNORECASE), label) for pattern, label in _MASTHEAD_RULES
+)
 
 
 def _parse_front_matter(text: str) -> tuple[dict[str, str], str]:
@@ -132,6 +171,99 @@ def _tag_lead_paragraph(html: str) -> str:
     return html[: p.start()] + f"<p{new_attrs}>" + html[p.end():]
 
 
+def _wrap_tables(html: str) -> tuple[str, bool]:
+    """Wrap each ``<table>`` in a scrollable ``<div class="table-wrap">``.
+
+    Tables with column count at or above ``_WIDE_TABLE_THRESHOLD`` also get a
+    ``wide`` class. Returns ``(html, has_wide_table)`` so the caller can flip
+    the whole document into a wider layout when any wide table is present.
+    """
+    has_wide = False
+
+    def _wrap(match: re.Match) -> str:
+        nonlocal has_wide
+        table = match.group(0)
+        first_tr = _HTML_FIRST_TR_RE.search(table)
+        cols = (
+            len(_HTML_TH_TD_OPEN_RE.findall(first_tr.group(1)))
+            if first_tr
+            else 0
+        )
+        is_wide = cols >= _WIDE_TABLE_THRESHOLD
+        if is_wide:
+            has_wide = True
+        wide_cls = " wide" if is_wide else ""
+        return f'<div class="table-wrap{wide_cls}">{table}</div>'
+
+    return _HTML_TABLE_RE.sub(_wrap, html), has_wide
+
+
+_PYGMENTS_LIGHT_STYLE = "friendly"
+_PYGMENTS_DARK_STYLE = "monokai"
+
+
+def _pygments_css() -> str:
+    """Generate scoped Pygments stylesheets for light and dark themes.
+
+    Returns an empty string when Pygments is unavailable. Light styles apply
+    by default; dark styles are gated behind ``:root[data-theme="dark"]`` so
+    the dark-mode toggle picks them up. The container ``background`` rule
+    that Pygments emits is dropped so the article's existing ``--code-bg``
+    flows through.
+    """
+    if not _PYGMENTS_AVAILABLE:
+        return ""
+
+    light = _PygmentsHtmlFormatter(style=_PYGMENTS_LIGHT_STYLE).get_style_defs(
+        ".highlight"
+    )
+    dark = _PygmentsHtmlFormatter(style=_PYGMENTS_DARK_STYLE).get_style_defs(
+        ':root[data-theme="dark"] .highlight'
+    )
+    bg_rule = re.compile(
+        r"^[^{]*\.highlight\s*\{[^}]*\}",
+        re.MULTILINE,
+    )
+    light = bg_rule.sub("", light, count=1)
+    dark = bg_rule.sub("", dark, count=1)
+    return (
+        "  /* Pygments syntax highlighting (light) */\n"
+        + light
+        + "\n  /* Pygments syntax highlighting (dark) */\n"
+        + dark
+    )
+
+
+def _infer_masthead(
+    meta: dict[str, str],
+    h1_title: str | None,
+    body: str,
+    source_path: Path | None,
+) -> str:
+    """Pick a masthead label without one being explicitly provided.
+
+    Priority: front-matter ``masthead`` (or ``kind``) > keyword scan over the
+    H1, top of body, filename, and parent directory > ``"ARTICLE"`` fallback.
+    """
+    explicit = (meta.get("masthead") or meta.get("kind") or "").strip()
+    if explicit:
+        return explicit.upper()
+
+    haystack_parts: list[str] = []
+    if h1_title:
+        haystack_parts.append(h1_title)
+    haystack_parts.append(body[:3000])
+    if source_path is not None:
+        haystack_parts.append(source_path.name)
+        haystack_parts.append(source_path.parent.name)
+    haystack = "\n".join(haystack_parts)
+
+    for pattern, label in _MASTHEAD_PATTERNS:
+        if pattern.search(haystack):
+            return label
+    return "ARTICLE"
+
+
 def _replace_mermaid_blocks(body: str, enable_mermaid: bool) -> tuple[str, bool]:
     """Convert mermaid fenced blocks. Returns (body, used_mermaid)."""
     if enable_mermaid:
@@ -181,9 +313,9 @@ _TEMPLATE = """<!doctype html>
   }}
   html {{ background: var(--bg-page); }}
   body {{
-    max-width: 7.0in;
+    max-width: 8.5in;
     margin: 0.6in auto;
-    padding: 0.6in 0.7in;
+    padding: 0.6in 0.85in;
     background: var(--bg-body);
     color: var(--fg);
     font-family: "Charter", "Iowan Old Style", "Georgia", serif;
@@ -193,6 +325,7 @@ _TEMPLATE = """<!doctype html>
     text-align: justify;
     box-shadow: var(--shadow);
   }}
+  body.wide-layout {{ max-width: 12.0in; }}
   .theme-toggle {{
     position: fixed;
     top: 10px;
@@ -212,6 +345,7 @@ _TEMPLATE = """<!doctype html>
   }}
   .theme-toggle:hover {{ opacity: 1; }}
   @page {{ margin: 0.5in 0.55in; }}
+  @page wide {{ size: landscape; margin: 0.4in 0.5in; }}
   @media print {{
     :root {{
       --bg-page: #fff;
@@ -236,6 +370,13 @@ _TEMPLATE = """<!doctype html>
     a {{ color: #000; }}
     .theme-toggle {{ display: none; }}
     h2, h3, table, pre, figure {{ page-break-inside: avoid; }}
+    .table-wrap {{ overflow-x: visible; }}
+    .table-wrap.wide {{ page: wide; }}
+    .table-wrap.wide > table {{ font-size: 8pt; }}
+    .table-wrap.wide th,
+    .table-wrap.wide td {{ padding: 3pt 5pt; }}
+    body.wide-layout {{ page: wide; }}
+    body.wide-layout .table-wrap.wide > table {{ font-size: 9pt; }}
   }}
   h1, h2, h3, h4, h5, h6, .masthead, .caption, .figlabel, .byline, .doctitle {{
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
@@ -320,9 +461,14 @@ _TEMPLATE = """<!doctype html>
   table {{
     border-collapse: collapse;
     width: 100%;
-    margin: 8pt 0 12pt 0;
+    margin: 0;
     font-size: 9.5pt;
   }}
+  .table-wrap {{
+    overflow-x: auto;
+    margin: 8pt 0 12pt 0;
+  }}
+  .table-wrap > table {{ margin: 0; }}
   th, td {{
     border-top: 1px solid var(--rule);
     border-bottom: 1px solid var(--rule);
@@ -358,6 +504,8 @@ _TEMPLATE = """<!doctype html>
     margin: 8pt 0 12pt 0;
   }}
   pre code {{ background: none; padding: 0; }}
+  div.highlight, div.highlight pre {{ background: transparent; }}
+/*PYGMENTS_CSS*/
   a {{ color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }}
   a:hover {{ border-bottom-style: solid; }}
   hr {{ border: 0; border-top: 1px solid var(--rule); margin: 18pt 0; }}
@@ -398,7 +546,7 @@ _TEMPLATE = """<!doctype html>
   }})();
 </script>
 </head>
-<body>
+<body{body_class}>
 <button class="theme-toggle" type="button" id="qexifyThemeToggle" aria-label="Toggle dark mode">Dark</button>
 <script>
   (function() {{
@@ -449,9 +597,10 @@ _MERMAID_SCRIPT = (
 def render(
     md_text: str,
     *,
-    masthead: str = "DESIGN SPEC",
+    masthead: str | None = None,
     issue: str | None = None,
     enable_mermaid: bool = True,
+    source_path: Path | None = None,
 ) -> str:
     meta, body = _parse_front_matter(md_text)
     h1_title, body = _extract_first_h1(body)
@@ -460,10 +609,27 @@ def render(
 
     body_html = markdown.markdown(
         body,
-        extensions=["tables", "fenced_code", "sane_lists", "attr_list"],
+        extensions=[
+            "tables",
+            "fenced_code",
+            "sane_lists",
+            "attr_list",
+            "codehilite",
+        ],
+        extension_configs={
+            "codehilite": {
+                "css_class": "highlight",
+                "guess_lang": False,
+                "noclasses": False,
+            },
+        },
         output_format="html5",
     )
     body_html = _tag_lead_paragraph(body_html)
+    body_html, has_wide_table = _wrap_tables(body_html)
+
+    if masthead is None:
+        masthead = _infer_masthead(meta, h1_title, body, source_path)
 
     title = meta.get("title", "").strip() or h1_title or "Document"
     description = meta.get("description", "").strip()
@@ -485,14 +651,16 @@ def render(
     if issue is None:
         issue = _dt.date.today().strftime("%B %Y").upper()
 
-    return _TEMPLATE.format(
+    rendered = _TEMPLATE.format(
         html_title=_html.escape(title),
         masthead=_html.escape(masthead),
         issue=_html.escape(issue),
         title_block=title_block,
         body_html=body_html,
         mermaid_script=_MERMAID_SCRIPT if used_mermaid else "",
+        body_class=' class="wide-layout"' if has_wide_table else "",
     )
+    return rendered.replace("/*PYGMENTS_CSS*/", _pygments_css())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -510,8 +678,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--masthead",
-        default="DESIGN SPEC",
-        help="Left-hand masthead label (default: DESIGN SPEC).",
+        default=None,
+        help=(
+            "Left-hand masthead label. If omitted, qexify infers from the "
+            "front-matter 'masthead' / 'kind' key, then by scanning the H1, "
+            "top of the body, and filename for keywords like 'design spec', "
+            "'benchmark', 'changelog', etc. Falls back to 'ARTICLE'."
+        ),
     )
     p.add_argument(
         "--issue",
@@ -545,6 +718,7 @@ def main(argv: list[str] | None = None) -> int:
         masthead=args.masthead,
         issue=args.issue,
         enable_mermaid=args.mermaid,
+        source_path=src,
     )
     out.write_text(html_out, encoding="utf-8")
     sys.stdout.write(f"Wrote {out} ({len(html_out):,} chars)\n")
