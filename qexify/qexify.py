@@ -615,6 +615,7 @@ def render(
             "sane_lists",
             "attr_list",
             "codehilite",
+            "toc",
         ],
         extension_configs={
             "codehilite": {
