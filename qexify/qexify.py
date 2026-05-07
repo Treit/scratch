@@ -80,6 +80,7 @@ _MASTHEAD_RULES: tuple[tuple[str, str], ...] = (
     (r"\bdesign[\s\-]+spec(ification)?s?\b", "DESIGN SPEC"),
     (r"\bdesign[\s\-]+doc(ument)?s?\b", "DESIGN DOC"),
     (r"\bspecification\b", "SPECIFICATION"),
+    (r"\bspecs?\b", "SPEC"),
     (r"\bproposal\b", "PROPOSAL"),
     (r"\btutorial\b", "TUTORIAL"),
     (r"\bhow[\s\-]?to\b", "HOW-TO"),
