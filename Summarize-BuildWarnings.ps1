@@ -1,7 +1,8 @@
 param(
     [string]$LogFile = "$PSScriptRoot\..\msbuild.log",
     [string]$OutputHtml = "",
-    [int]$Columns = 0
+    [int]$Columns = 0,
+    [switch]$IncludeTestProjects
 )
 
 $LogFile = Resolve-Path $LogFile
@@ -90,6 +91,7 @@ $searchLines = if ($summaryStart -gt 0) { $lines[$summaryStart..($lines.Count - 
 
 $codes = foreach ($line in $searchLines) {
     if ($line -match ': warning\s*(\w*)\s*:') {
+        if (-not $IncludeTestProjects -and $line -match '\\test\\') { continue }
         $code = $Matches[1]
         if ([string]::IsNullOrWhiteSpace($code)) { '(no code)' } else { $code }
     }

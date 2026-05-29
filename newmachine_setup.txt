@@ -45,6 +45,7 @@ npm install -g @usebruno/cli
 winget install GitHub.Copilot
 winget install icsharpcode.ILSpy
 winget install 7zip.7zip
+winget install bootandy.dust
 
 # Non-CLI installs
 cascadia code - https://github.com/microsoft/cascadia-code/releases
