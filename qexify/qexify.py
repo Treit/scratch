@@ -1,9 +1,10 @@
 """
 qexify - render a Markdown spec as a QEX-magazine-styled, single-file HTML article.
 
-Inspired by ARRL QEX layout: serif body, sans masthead and headings, drop cap on
-the lead paragraph, banded tables, auto-numbered H2 sections, narrow measure for
-print, and a print stylesheet that drops the screen frame and uses the full page.
+Inspired by ARRL QEX layout: serif body, sans masthead and headings, banded
+tables, auto-numbered H2 sections, narrow measure for print, and a print
+stylesheet that drops the screen frame and uses the full page. Pass
+``--drop-cap`` to opt into the QEX-style drop cap on the lead paragraph.
 
 Inputs:
   - A Markdown file. YAML front matter with `title`, `description`, `author`,
@@ -601,6 +602,7 @@ def render(
     masthead: str | None = None,
     issue: str | None = None,
     enable_mermaid: bool = True,
+    drop_cap: bool = False,
     source_path: Path | None = None,
 ) -> str:
     meta, body = _parse_front_matter(md_text)
@@ -627,7 +629,8 @@ def render(
         },
         output_format="html5",
     )
-    body_html = _tag_lead_paragraph(body_html)
+    if drop_cap:
+        body_html = _tag_lead_paragraph(body_html)
     body_html, has_wide_table = _wrap_tables(body_html)
 
     if masthead is None:
@@ -706,6 +709,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_false",
         help="Keep mermaid blocks as plain code blocks for fully offline output.",
     )
+    p.add_argument(
+        "--drop-cap",
+        dest="drop_cap",
+        action="store_true",
+        default=False,
+        help=(
+            "Render a QEX-style drop cap on the lead paragraph. Off by default."
+        ),
+    )
     args = p.parse_args(argv)
 
     src: Path = args.input
@@ -720,6 +732,7 @@ def main(argv: list[str] | None = None) -> int:
         masthead=args.masthead,
         issue=args.issue,
         enable_mermaid=args.mermaid,
+        drop_cap=args.drop_cap,
         source_path=src,
     )
     out.write_text(html_out, encoding="utf-8")
